@@ -37,7 +37,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 )
 
-const startURL = "wails://wails/"
+const startURL = "http://localhost:50102/"
 
 type bindingsMessage struct {
 	message     string

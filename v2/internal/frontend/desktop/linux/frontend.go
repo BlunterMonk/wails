@@ -103,7 +103,8 @@ import (
 
 var initOnce = sync.Once{}
 
-const startURL = "wails://wails/"
+// const startURL = "wails://wails/"
+const startURL = "http://localhost:5173/"
 
 var secondInstanceBuffer = make(chan options.SecondInstanceData, 1)
 
