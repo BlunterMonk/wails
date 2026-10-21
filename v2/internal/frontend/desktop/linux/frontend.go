@@ -82,6 +82,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"runtime"
@@ -104,7 +105,10 @@ import (
 var initOnce = sync.Once{}
 
 // const startURL = "wails://wails/"
-const startURL = "http://localhost:5173/"
+// WebKitGTK cannot intercept http:// requests the way WebView2 does on Windows,
+// so in production the asset server is exposed on this address over real HTTP
+// (see serveAssetsOverHTTP). This keeps the page origin on localhost, matching Windows.
+const startURL = "http://127.0.0.1:5173/"
 
 var secondInstanceBuffer = make(chan options.SecondInstanceData, 1)
 
@@ -218,6 +222,20 @@ func NewFrontend(ctx context.Context, appoptions *options.App, myLogger *logger.
 	return result
 }
 
+// serveAssetsOverHTTP serves the asset server on the start URL's host so the
+// webview can load the app from a real http://127.0.0.1 origin.
+func (f *Frontend) serveAssetsOverHTTP() {
+	listener, err := net.Listen("tcp", f.startURL.Host)
+	if err != nil {
+		log.Fatalf("unable to serve assets on %s: %v", f.startURL.Host, err)
+	}
+	go func() {
+		if err := http.Serve(listener, f.assets); err != nil {
+			f.logger.Error("asset server stopped: %v", err)
+		}
+	}()
+}
+
 func (f *Frontend) startMessageProcessor() {
 	for message := range messageBuffer {
 		f.processMessage(message)
@@ -269,6 +287,11 @@ func (f *Frontend) Run(ctx context.Context) error {
 
 	if f.frontendOptions.SingleInstanceLock != nil {
 		SetupSingleInstance(f.frontendOptions.SingleInstanceLock.UniqueId)
+	}
+
+	// In dev mode the start URL points at the dev server and assets is nil
+	if f.assets != nil && f.startURL.Scheme == "http" {
+		f.serveAssetsOverHTTP()
 	}
 
 	f.mainWindow.Run(f.startURL.String())
