@@ -557,7 +557,14 @@ static gboolean onDragDrop(GtkWidget* self, GdkDragContext* context, gint x, gin
 // WebView
 GtkWidget *SetupWebview(void *contentManager, GtkWindow *window, int hideWindowOnClose, int gpuPolicy, int disableWebViewDragAndDrop, int enableDragAndDrop)
 {
-    GtkWidget *webview = webkit_web_view_new_with_user_content_manager((WebKitUserContentManager *)contentManager);
+    // Allow media to autoplay with sound, matching WebView2 on Windows
+    // (WebKitGTK otherwise blocks unmuted autoplay until the user interacts)
+    WebKitWebsitePolicies *policies = webkit_website_policies_new_with_policies("autoplay", WEBKIT_AUTOPLAY_ALLOW, NULL);
+    GtkWidget *webview = GTK_WIDGET(g_object_new(WEBKIT_TYPE_WEB_VIEW,
+                                                 "user-content-manager", (WebKitUserContentManager *)contentManager,
+                                                 "website-policies", policies,
+                                                 NULL));
+    g_object_unref(policies);
 
     // Store webview reference in the content manager
     g_object_set_data(G_OBJECT((WebKitUserContentManager *)contentManager), "webview", webview);
